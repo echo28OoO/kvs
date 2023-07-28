@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-
 #[derive(Default)]
 /// KvStore basic
 pub struct KvStore {
@@ -11,7 +10,9 @@ pub struct KvStore {
 impl KvStore {
     /// 创建一个 'KvStore {map}'
     pub fn new() -> KvStore {
-        KvStore { map: HashMap::new() }
+        KvStore {
+            map: HashMap::new(),
+        }
     }
 
     /// 向 KvStore map 存入新的 key - value
@@ -29,4 +30,3 @@ impl KvStore {
         self.map.remove(&key);
     }
 }
-
