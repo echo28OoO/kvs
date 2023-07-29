@@ -57,3 +57,20 @@ impl Command {
         Command::Remove { key }
     }
 }
+
+/// 表示 json 序列化命令在日志中的位置和长度
+struct CommandPos {
+    gen: u64,
+    pos: u64,
+    len: u64,
+}
+
+impl From<(u64, Range<u64>)> for CommandPos {
+    fn from((gen, range): (u64, Range<u64>)) -> Self {
+        CommandPos { 
+            gen, 
+            pos: range.start,
+            len: range.end - range.start,
+        }
+    }
+}
