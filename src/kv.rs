@@ -13,16 +13,64 @@ use std::ffi::OsStr;
 const COMPACTION_THRESHOLD: u64 = 1024 * 1024;
 
 #[derive(Default)]
-/// KvStore basic
+/// KvStore 存储字符串 key/value
+    /// 
+    /// key/value 通过日志文件保存到磁盘
+    /// 日志文件以单调递增的生成编号命名
+    /// 内存中的 BTreeMap 存储 key 和 value 的位置以便快速查询
+    /// 
+    /// ```rust
+    /// # use kvs::{KvStore, Result};
+    /// # fn try_main() -> Result<()> {
+    /// use std::env::current_dir;
+    /// let mut store = KvStore::open(current_dir()?)?;
+    /// store.set("key".to_owned(), "value".to_owned())?;
+    /// let val = store.get("key".to_owned())?;
+    /// assert_eq!(val, Some("value".to_owned()));
+    /// # Ok(())
+    /// # }
+    /// ```
 pub struct KvStore {
-    map: HashMap<String, String>,
+    // 日志和其他数据的目录
+    path: PathBuf,
+    // 将生成号映射到文件 reader
+    readers: HashMap<u64, BufReaderWithPos<File>>,
+    // 当前日志的 writer
+    writer: BufWriterWithPos<File>,
+    current_gen: u64,
+    index: BTreeMap<String, CommandPos>,
+    // 表示在压缩期间可以删除的“过时”命令的字节数
+    uncompacted: u64,
 }
 
-/// KvStore 接口
 impl KvStore {
-    /// 创建一个 'KvStore {map}'
-    pub fn new() -> KvStore {
-        KvStore { map: HashMap::new() }
+    /// 使用给定路径打开 KvStore
+    /// 
+    /// 如果给定的目录 bucp在，这将创建一个新目录
+    /// 
+    /// # Errors
+    /// 
+    /// 它在日志重播期间传播 I/O 或者反序列化错误
+    pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
+        let path = path.into();
+        fs::create_dir_all(&path)?;
+
+        let mut readers = HashMap::new();
+        let mut index = BTreeMap::new();
+
+        let gen_list = sorted_gen_list(&path)?;
+        let mut uncompacted = 0;
+
+        for &gen in &gen_list {
+            let mut reader = BufReaderWithPos::new(File::open(log_path(&path, gen))?)?;
+            uncompacted += load(gen, &mut reader, &mut index)?;
+            readers.insert(gen, reader);
+        }
+
+        let current_gen = gen_list.last().unwrap_or(&0) + 1;
+        let writer = new_log_file(&path, current_gen, &mut readers)?;
+
+        Ok(KvStore { path, readers, writer, current_gen, index, uncompacted })
     }
 
     /// 向 KvStore map 存入新的 key - value
