@@ -117,7 +117,56 @@ impl KvStore {
     pub fn remove(&mut self, key: String) {
         self.map.remove(&key);
     }
+
+    /// 清楚日志中的陈旧条目
+    pub fn compact(&mut self) -> Result<()> {
+        // 将 current gen 增加 2. current gen + 1 用于压缩文件
+        let compaction_gen = self.current_gen + 1;
+        self.current_gen += 2;
+        self.writer = self.new_log_file(self.current_gen)?;
+
+        let mut compaction_writer = self.new_log_file(compaction_gen)?;
+
+        let mut new_pos = 0; // 新文件中的 pos
+        for cmd_pos in &mut self.index.values_mut() {
+            let reader = self
+                .readers
+                .get_mut(&cmd_pos.gen)
+                .expect("Cannot find log reader");
+            if reader.pos != cmd_pos.pos {
+                reader.seek(SeekFrom::Start(cmd_pos.pos))?;
+            }
+
+            let mut entry_reader = reader.take(cmd_pos.len);
+            let len = io::copy(&mut entry_reader, &mut compaction_writer)?;
+            *cmd_pos = (compaction_gen, new_pos..new_pos + len).into();
+            new_pos += len;
+        }
+        compaction_writer.flush()?;
+
+        // 删除陈旧的日志文件
+        let stale_gens: Vec<_> = self
+            .readers
+            .keys()
+            .filter(|&&gen| gen < compaction_gen)
+            .cloned()
+            .collect();
+        for stale_gen in stale_gens {
+            self.readers.remove(&stale_gen);
+            fs::remove_file(log_path(&self.path, stale_gen))?;
+        }
+        self.uncompacted = 0;
+        Ok(())
+    }
+
+    /// 使用特定的代号创建一个新的日志文件，并将 reader 放到 reader map 中
+    /// 
+    /// 将 writer 返回给 log
+    pub fn new_log_file(&mut self, gen: u64) -> Result<BufWriterWithPos<File>> {
+        new_log_file(&self.path, gen, &mut self.readers)
+    }
 }
+
 /// 使用特定的代号创建一个新的日志文件，并将 reader 放到 reader map 中
 /// 
 /// 将 writer 返回给 log
