@@ -12,8 +12,7 @@ use std::ffi::OsStr;
 
 const COMPACTION_THRESHOLD: u64 = 1024 * 1024;
 
-#[derive(Default)]
-/// KvStore 存储字符串 key/value
+    /// KvStore 存储字符串 key/value
     /// 
     /// key/value 通过日志文件保存到磁盘
     /// 日志文件以单调递增的生成编号命名
