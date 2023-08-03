@@ -70,12 +70,42 @@ impl KvStore {
         let current_gen = gen_list.last().unwrap_or(&0) + 1;
         let writer = new_log_file(&path, current_gen, &mut readers)?;
 
-        Ok(KvStore { path, readers, writer, current_gen, index, uncompacted })
+        Ok(KvStore {
+            path,
+            readers,
+            writer,
+            current_gen,
+            index,
+            uncompacted,
+        })
     }
 
-    /// 向 KvStore map 存入新的 key - value
-    pub fn set(&mut self, key: String, vlaue: String) {
-        self.map.insert(key, vlaue);
+    /// 将字符串 key 的 value 设置为字符串
+    /// 
+    /// 如果 key 已经存在，则进行覆盖
+    /// 
+    /// # Errors
+    /// 
+    /// 在写入日志期间传播 I/O 或序列化错误
+    pub fn set(&mut self, key: String, vlaue: String) -> Result<()>{
+        let cmd = Command::set(key, vlaue);
+        let pos = self.writer.pos;
+        serde_json::to_writer(&mut self.writer, &cmd)?;
+        self.writer.flush()?;
+        if let Command::Set { key, .. } = cmd {
+            if let Some(old_cmd) = self
+                .index
+                .insert(key, (self.current_gen, pos..self.writer.pos).into())
+            {
+                self.uncompacted += old_cmd.len;
+            }
+        }
+
+        if self.uncompacted > COMPACTION_THRESHOLD {
+            self.compact()?;
+        }
+        Ok(())
+
     }
 
     /// 根据 key 从 KvStore 中获取相应的 value
@@ -259,5 +289,4 @@ impl<W: Write + Seek> Seek for BufWriterWithPos<W> {
         self.pos = self.writer.seek(pos)?;
         Ok(self.pos)
     }
-    
 }
