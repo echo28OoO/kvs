@@ -107,9 +107,29 @@ impl KvStore {
 
     }
 
-    /// 根据 key 从 KvStore 中获取相应的 value
-    pub fn get(&self, key: String) -> Option<String> {
-        self.map.get(&key).cloned()
+    /// 获取给定字符串 key 的 字符串 value
+    /// 
+    /// 如果给定的 key 不存在，则返回 None
+    /// 
+    /// # Errors
+    /// 
+    /// 如果给定的命令类型意外，则返回 `KvsError::UnexpectedCommandType`
+    pub fn get(&self, key: String) -> Result<Option<String>> {
+        if let Some(cmd_pos) = self.index.get(&key) {
+            let reader = self
+                .readers
+                .get_mut(&cmd_pos.gen)
+                .expect("Cannot find log reader");
+            reader.seek(SeekFrom::Start(cmd_pos.pos))?;
+            let cmd_reader = reader.take(cmd_pos.len);
+            if let Command::Set { value, .. } = serde_json::from_reader(cmd_reader)? {
+                Ok(Some(value))
+            } else {
+                Err(KvsError::UnexpectedCommandType)
+            }
+        } else {
+            Ok(None)
+        }
     }
 
     /// 根据 key 从 KvStore 中删除相应的 key - value
