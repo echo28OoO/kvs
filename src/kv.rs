@@ -114,7 +114,7 @@ impl KvStore {
     /// # Errors
     /// 
     /// 如果给定的命令类型意外，则返回 `KvsError::UnexpectedCommandType`
-    pub fn get(&self, key: String) -> Result<Option<String>> {
+    pub fn get(&mut self, key: String) -> Result<Option<String>> {
         if let Some(cmd_pos) = self.index.get(&key) {
             let reader = self
                 .readers
@@ -132,9 +132,26 @@ impl KvStore {
         }
     }
 
-    /// 根据 key 从 KvStore 中删除相应的 key - value
-    pub fn remove(&mut self, key: String) {
-        self.map.remove(&key);
+    /// 删除给定的键
+    /// 
+    /// # Errors
+    /// 
+    /// 如果未找到给定的额键，则返回 KvsError::KeyNotFound
+    /// 
+    /// 它在写入日志期间传播 I/O 或序列化错误
+    pub fn remove(&mut self, key: String) -> Result<()> {
+        if self.index.contains_key(&key) {
+            let cmd = Command::remove(key);
+            serde_json::to_writer(&mut self.writer, &cmd)?;
+            self.writer.flush()?;
+            if let Command::Remove { key } = cmd {
+                let old_cmd = self.index.remove(&key).expect("key not found");
+                self.uncompacted += old_cmd.len;
+            }
+            Ok(())
+        } else {
+            Err(KvsError::KeyNotFound)
+        }
     }
 
     /// 清楚日志中的陈旧条目
@@ -181,7 +198,7 @@ impl KvStore {
     /// 使用特定的代号创建一个新的日志文件，并将 reader 放到 reader map 中
     /// 
     /// 将 writer 返回给 log
-    pub fn new_log_file(&mut self, gen: u64) -> Result<BufWriterWithPos<File>> {
+    fn new_log_file(&mut self, gen: u64) -> Result<BufWriterWithPos<File>> {
         new_log_file(&self.path, gen, &mut self.readers)
     }
 }
