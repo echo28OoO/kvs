@@ -12,23 +12,23 @@ use std::ffi::OsStr;
 
 const COMPACTION_THRESHOLD: u64 = 1024 * 1024;
 
-    /// KvStore 存储字符串 key/value
-    /// 
-    /// key/value 通过日志文件保存到磁盘
-    /// 日志文件以单调递增的生成编号命名
-    /// 内存中的 BTreeMap 存储 key 和 value 的位置以便快速查询
-    /// 
-    /// ```rust
-    /// # use kvs::{KvStore, Result};
-    /// # fn try_main() -> Result<()> {
-    /// use std::env::current_dir;
-    /// let mut store = KvStore::open(current_dir()?)?;
-    /// store.set("key".to_owned(), "value".to_owned())?;
-    /// let val = store.get("key".to_owned())?;
-    /// assert_eq!(val, Some("value".to_owned()));
-    /// # Ok(())
-    /// # }
-    /// ```
+/// KvStore 存储字符串 key/value
+///
+/// key/value 通过日志文件保存到磁盘
+/// 日志文件以单调递增的生成编号命名
+/// 内存中的 BTreeMap 存储 key 和 value 的位置以便快速查询
+///
+/// ```rust
+/// # use kvs::{KvStore, Result};
+/// # fn try_main() -> Result<()> {
+/// use std::env::current_dir;
+/// let mut store = KvStore::open(current_dir()?)?;
+/// store.set("key".to_owned(), "value".to_owned())?;
+/// let val = store.get("key".to_owned())?;
+/// assert_eq!(val, Some("value".to_owned()));
+/// # Ok(())
+/// # }
+/// ```
 pub struct KvStore {
     // 日志和其他数据的目录
     path: PathBuf,
@@ -44,11 +44,11 @@ pub struct KvStore {
 
 impl KvStore {
     /// 使用给定路径打开 KvStore
-    /// 
+    ///
     /// 如果给定的目录 bucp在，这将创建一个新目录
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// 它在日志重播期间传播 I/O 或者反序列化错误
     pub fn open(path: impl Into<PathBuf>) -> Result<KvStore> {
         let path = path.into();
@@ -80,13 +80,13 @@ impl KvStore {
     }
 
     /// 将字符串 key 的 value 设置为字符串
-    /// 
+    ///
     /// 如果 key 已经存在，则进行覆盖
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// 在写入日志期间传播 I/O 或序列化错误
-    pub fn set(&mut self, key: String, vlaue: String) -> Result<()>{
+    pub fn set(&mut self, key: String, vlaue: String) -> Result<()> {
         let cmd = Command::set(key, vlaue);
         let pos = self.writer.pos;
         serde_json::to_writer(&mut self.writer, &cmd)?;
@@ -104,15 +104,14 @@ impl KvStore {
             self.compact()?;
         }
         Ok(())
-
     }
 
     /// 获取给定字符串 key 的 字符串 value
-    /// 
+    ///
     /// 如果给定的 key 不存在，则返回 None
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// 如果给定的命令类型意外，则返回 `KvsError::UnexpectedCommandType`
     pub fn get(&mut self, key: String) -> Result<Option<String>> {
         if let Some(cmd_pos) = self.index.get(&key) {
@@ -133,11 +132,11 @@ impl KvStore {
     }
 
     /// 删除给定的键
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// 如果未找到给定的额键，则返回 KvsError::KeyNotFound
-    /// 
+    ///
     /// 它在写入日志期间传播 I/O 或序列化错误
     pub fn remove(&mut self, key: String) -> Result<()> {
         if self.index.contains_key(&key) {
@@ -196,7 +195,7 @@ impl KvStore {
     }
 
     /// 使用特定的代号创建一个新的日志文件，并将 reader 放到 reader map 中
-    /// 
+    ///
     /// 将 writer 返回给 log
     fn new_log_file(&mut self, gen: u64) -> Result<BufWriterWithPos<File>> {
         new_log_file(&self.path, gen, &mut self.readers)
@@ -204,13 +203,13 @@ impl KvStore {
 }
 
 /// 使用特定的代号创建一个新的日志文件，并将 reader 放到 reader map 中
-/// 
+///
 /// 将 writer 返回给 log
 fn new_log_file(
     path: &Path,
-    gen:u64,
+    gen: u64,
     readers: &mut HashMap<u64, BufReaderWithPos<File>>,
-) -> Result<BufWriterWithPos<File>>{
+) -> Result<BufWriterWithPos<File>> {
     let path = log_path(&path, gen);
     let writer = BufWriterWithPos::new(
         OpenOptions::new()
@@ -230,7 +229,7 @@ fn sorted_gen_list(path: &Path) -> Result<Vec<u64>> {
         .filter(|path| path.is_file() && path.extension() == Some("log".as_ref()))
         .flat_map(|path| {
             path.file_name()
-                .and_then(OsStr::to_str)  
+                .and_then(OsStr::to_str)
                 .map(|s| s.trim_end_matches(".log"))
                 .map(str::parse::<u64>)
         })
@@ -241,7 +240,7 @@ fn sorted_gen_list(path: &Path) -> Result<Vec<u64>> {
 }
 
 /// 加载整个日志文件并将值未存在索引映射中
-/// 
+///
 /// 返回压缩后可以保存多少字节
 fn load(
     gen: u64,
@@ -264,10 +263,10 @@ fn load(
                 if let Some(old_cmd) = index.remove(&key) {
                     uncompacted += old_cmd.len;
                 }
-                // remove 命令本身可以在下次压缩时删除。 
+                // remove 命令本身可以在下次压缩时删除。
                 // 所以我们将其长度添加到 uncompacted
                 uncompacted += new_pos - pos;
-            }   
+            }
         }
         pos = new_pos;
     }
@@ -304,8 +303,8 @@ struct CommandPos {
 
 impl From<(u64, Range<u64>)> for CommandPos {
     fn from((gen, range): (u64, Range<u64>)) -> Self {
-        CommandPos { 
-            gen, 
+        CommandPos {
+            gen,
             pos: range.start,
             len: range.end - range.start,
         }
@@ -320,8 +319,8 @@ struct BufReaderWithPos<R: Read + Seek> {
 impl<R: Read + Seek> BufReaderWithPos<R> {
     fn new(mut inner: R) -> Result<Self> {
         let pos = inner.seek(SeekFrom::Current(0))?;
-        Ok(BufReaderWithPos { 
-            reader: BufReader::new(inner), 
+        Ok(BufReaderWithPos {
+            reader: BufReader::new(inner),
             pos,
         })
     }
@@ -350,7 +349,7 @@ struct BufWriterWithPos<W: Write + Seek> {
 impl<W: Write + Seek> BufWriterWithPos<W> {
     fn new(mut inner: W) -> Result<Self> {
         let pos = inner.seek(SeekFrom::Current(0))?;
-        Ok(BufWriterWithPos { 
+        Ok(BufWriterWithPos {
             writer: BufWriter::new(inner),
             pos,
         })

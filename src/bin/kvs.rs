@@ -52,7 +52,7 @@ fn main() -> Result<()> {
             } else {
                 println!("Key not found");
             }
-         }
+        }
         ("rm", Some(matches)) => {
             let key = matches.value_of("KEY").unwrap();
 
