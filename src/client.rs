@@ -14,7 +14,7 @@ pub struct KvsClient {
 impl KvsClient {
     /// 连接到 addr 以访问 KvsServer
     pub fn connect<A: ToSocketAddrs>(addr: A) -> Result<Self> {
-        let tcp_reader = TcpStream::connect(addr);
+        let tcp_reader = TcpStream::connect(addr)?;
         let tcp_writer = tcp_reader.try_clone()?;
         Ok(KvsClient {
             reader: Deserializer::from_reader(BufReader::new(tcp_reader)),
@@ -34,7 +34,7 @@ impl KvsClient {
     }
 
     /// 从服务器设置给定键的值
-    pub fn set(&mut self, key: string, value: String) -> Result<()> {
+    pub fn set(&mut self, key: String, value: String) -> Result<()> {
         serde_json::to_writer(&mut self.writer, &Request::Set { key, value })?;
         self.writer.flush()?;
         let resp = SetResponse::deserialize(&mut self.reader)?;
