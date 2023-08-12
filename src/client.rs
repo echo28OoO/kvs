@@ -32,4 +32,15 @@ impl KvsClient {
             GetResponse::Err(msg) => Err(KvsError::StringError(msg)),
         }
     }
+
+    /// 从服务器设置给定键的值
+    pub fn set(&mut self, key: string, value: String) -> Result<()> {
+        serde_json::to_writer(&mut self.writer, &Request::Set { key, value })?;
+        self.writer.flush()?;
+        let resp = SetResponse::deserialize(&mut self.reader)?;
+        match resp {
+            SetResponse::Ok(_) => Ok(()),
+            SetResponse::Err(msg) => Err(KvsError::StringError(msg)),
+        }
+    }
 }
