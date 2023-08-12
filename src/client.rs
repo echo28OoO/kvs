@@ -43,4 +43,15 @@ impl KvsClient {
             SetResponse::Err(msg) => Err(KvsError::StringError(msg)),
         }
     }
+
+    /// 从服务器删除给定键的值
+    pub fn remove(&mut self, key: String) -> Result<()> {
+        serde_json::to_writer(&mut self.writer, &Request::Remove { key })?;
+        self.writer.flush()?;
+        let resp = RemoveResponse::deserialize(&mut self.reader)?;
+        match resp {
+            RemoveResponse::Ok(_) => Ok(()),
+            RemoveResponse::Err(msg) => Err(KvsError::StringError(msg)),
+        }
+    }
 }
