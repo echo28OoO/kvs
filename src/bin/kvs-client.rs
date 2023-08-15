@@ -63,3 +63,9 @@ enum Command {
         addr: SocketAddr,
     },
 }
+
+fn main() {
+   let opt = Opt::from_args();
+   
+}
+
