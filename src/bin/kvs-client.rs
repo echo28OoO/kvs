@@ -66,6 +66,31 @@ enum Command {
 
 fn main() {
    let opt = Opt::from_args();
-   
+   if let Err(e)  = run(opt) {
+       eprintln!("Error: {}", e);
+       exit(1);
+   }
 }
 
+fn run(opt: Opt) -> Result<()> {
+    match opt.command {
+        Command::Get { key, addr } => {
+            let mut client = KvsClient::connect(addr)?;
+            let value = client.get(key)?;
+            if let Some(value) = value {
+                println!("{}", value);
+            } else {
+                println!("Key not found");
+            }
+        }
+        Command::Set { key, value, addr } => {
+            let mut client = KvsClient::connect(addr)?;
+            client.set(key, value)?;
+        }
+        Command::Remove { key, addr } => {
+            let mut client = KvsClient::connect(addr)?;
+            client.remove(key)?;
+        }
+    }
+    Ok(())
+}
