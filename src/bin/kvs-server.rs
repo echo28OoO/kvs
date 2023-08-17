@@ -40,6 +40,40 @@ arg_enum! {
     }
 }
 
+fn main() {
+    env_logger::builder().filter_level(LevelFilter::Info).init();
+    let mut opt = Opt::from_args();
+    let res = current_engine().and_then(move |curr_engine| {
+        if opt.engine.is_none() {
+            opt.engine = curr_engine;
+        }
+        if curr_engine.is_some() && opt.engine != curr_engine {
+            error!("Wrong engine");
+            exit(1);
+        }
+        run(opt)
+    });
+    if let Err(e) = res {
+        error!("{}", e);
+        exit(1);
+    }
+}
+
+fn run(opt: Opt) -> Result<()> {
+    let engine = opt.engine.unwrap_or(DEFAULT_ENGINE);
+    info!("kvs-server {}", env!("CARGO_PKG_VERSION"));
+    info!("Storage engine: {}", engine);
+    info!("Listening on {}", opt.addr);
+
+    // 写入 engine 到 engine 文件
+    fs::write(current_dir()?.join("engine"), format!("{}", engine))?;
+
+    match engine {
+        Engine::kvs => run_with_engine(KvStore::open(current_dir()?)?, opt.addr),
+        Engine::sled => run_with_engine(SledKvsEngine::new(sled::open(current_dir()?)?), opt.addr),
+    }
+}
+
 fn run_with_engine<E: KvsEngine>(engine: E, addr: SocketAddr) -> Result<()> {
     let server = KvsServer::new(engine);
     server.run(addr)
