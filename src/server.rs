@@ -39,14 +39,12 @@ impl<E: KvsEngine> KvsServer<E> {
         let req_reader = Deserializer::from_reader(reader).into_iter::<Request>();
 
         macro_rules! send_resp {
-            ($resp:expr) => {
-                {
-                    let resp = $resp;
-                    serde_json::to_writer(&mut writer, &resp)?;
-                    writer.flush()?;
-                    debug!("Response sent to {}: {:?}", peer_addr, resp);
-                }
-            };
+            ($resp:expr) => {{
+                let resp = $resp;
+                serde_json::to_writer(&mut writer, &resp)?;
+                writer.flush()?;
+                debug!("Response sent to {}: {:?}", peer_addr, resp);
+            }};
         }
 
         for req in req_reader {
