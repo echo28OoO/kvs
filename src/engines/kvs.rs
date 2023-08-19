@@ -133,7 +133,6 @@ impl KvStore {
 }
 
 impl KvsEngine for KvStore {
-    
     /// 将字符串 key 的 value 设置为字符串
     ///
     /// 如果 key 已经存在，则进行覆盖
@@ -160,7 +159,6 @@ impl KvsEngine for KvStore {
         }
         Ok(())
     }
-
 
     /// 获取给定字符串 key 的 字符串 value
     ///
