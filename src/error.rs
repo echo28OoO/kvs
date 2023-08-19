@@ -27,7 +27,6 @@ pub enum KvsError {
     /// 错误消息
     #[fail(display = "{}", _0)]
     StringError(String),
-    
 }
 
 impl From<io::Error> for KvsError {
