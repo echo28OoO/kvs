@@ -24,8 +24,24 @@ impl ThreadPool for SharedQueueThreadPool {
     fn new (threads: u32) -> Result<Self> {
         let (tx, rx) = channel::unbounded::<Box<dyn FnOnce() + Send + 'static>>();
         for _ in 0..threads {
-            ..
+            let rx = TaskReceiver(rx.clone());
+            thread::Builder::new().spawn(move || run_tasks(rx))?;
         }
+        Ok(SharedQueueThreadPool { tx })
+    }
+
+    /// 将函数生成到线程池中。
+    /// 
+    /// # Panics
+    /// 
+    /// 如果线程池没有线程则发生 panics
+    fn spawn<F>(&self, job: F)
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        self.tx
+            .send(Box::new(job))
+            .expect("The thread pool has no thread.");
     }
 }
 
