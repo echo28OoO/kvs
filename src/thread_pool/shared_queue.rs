@@ -21,7 +21,7 @@ pub struct SharedQueueThreadPool {
 }
 
 impl ThreadPool for SharedQueueThreadPool {
-    fn new (threads: u32) -> Result<Self> {
+    fn new(threads: u32) -> Result<Self> {
         let (tx, rx) = channel::unbounded::<Box<dyn FnOnce() + Send + 'static>>();
         for _ in 0..threads {
             let rx = TaskReceiver(rx.clone());
@@ -65,7 +65,7 @@ fn run_tasks(rx: TaskReceiver) {
             Ok(task) => {
                 task();
             }
-            Err(_) => debug!("Thread exits because th thread pool is destroyed."),
+            Err(_) => debug!("Thread exits because the thread pool is destroyed."),
         }
     }
 }
