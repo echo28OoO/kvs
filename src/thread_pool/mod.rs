@@ -6,6 +6,10 @@ mod naive;
 mod rayon;
 mod shared_queue;
 
+pub use self::naive::NaiveThreadPool;
+pub use self::rayon::RayonThreadPool;
+pub use self::shared_queue::SharedQueueThreadPool;
+
 /// 所有线程池都应该实现的特征。
 pub trait ThreadPool {
     /// 创建一个新的线程池，立即生成指定数量的线程
